@@ -15,7 +15,12 @@ help:
 	@echo "  make run        - Build and run the app"
 	@echo "  make clean      - Clean build artifacts"
 	@echo "  make install    - Install the app to /Applications"
+	@echo "  make context    - Update Gemini Agent context from docs"
 	@echo "  make help       - Show this help message"
+
+context:
+	@echo "Updating Gemini Agent context..."
+	@./.gemini/update_context.sh
 
 build:
 	@echo "Building $(APP_NAME) in debug mode..."
