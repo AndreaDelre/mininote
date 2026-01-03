@@ -11,11 +11,17 @@ let package = Package(
             name: "MiniNote",
             targets: ["MiniNote"])
     ],
-    dependencies: [],
+    dependencies: [
+        .package(url: "https://github.com/apple/swift-markdown.git", branch: "main"),
+        .package(url: "https://github.com/JohnSundell/Splash.git", from: "0.16.0")
+    ],
     targets: [
         .executableTarget(
             name: "MiniNote",
-            dependencies: [],
+            dependencies: [
+                .product(name: "Markdown", package: "swift-markdown"),
+                .product(name: "Splash", package: "Splash")
+            ],
             path: "Sources"
         )
     ]

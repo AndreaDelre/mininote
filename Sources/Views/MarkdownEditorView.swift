@@ -108,6 +108,7 @@ struct MarkdownEditorView: NSViewRepresentable {
         @Binding var content: String
         weak var textView: NSTextView?
         private var isRendering = false
+        private let parser = MarkdownParser()
 
         init(content: Binding<String>) {
             self._content = content
@@ -143,66 +144,11 @@ struct MarkdownEditorView: NSViewRepresentable {
         func renderMarkdown() {
             guard let textView = textView, let storage = textView.textStorage else { return }
             isRendering = true
-
-            let fullRange = NSRange(location: 0, length: storage.length)
             
-            storage.setAttributes([
-                .font: NSFont.systemFont(ofSize: 15),
-                .foregroundColor: NSColor.labelColor
-            ], range: fullRange)
-
-            let text = storage.string
-            
-            text.enumerateSubstrings(in: text.startIndex..., options: .byLines) { (substring, substringRange, _, _) in
-                guard let line = substring else { return }
-                let lineRange = NSRange(substringRange, in: text)
-                
-                // 1. Titles
-                if line.hasPrefix("#") {
-                    let level = line.prefix(while: { $0 == "#" }).count
-                    let fontSize: CGFloat = level == 1 ? 22 : (level == 2 ? 18 : 16)
-                    storage.addAttribute(.font, value: NSFont.boldSystemFont(ofSize: fontSize), range: lineRange)
-                    if level == 1 {
-                        storage.addAttribute(.foregroundColor, value: NSColor.systemBlue, range: lineRange)
-                    }
-                }
-                
-                // 2. Bold
-                self.applyRegex(pattern: #"\*\*(.+?)\*\*"#, in: line, lineOffset: lineRange.location, storage: storage) { range in
-                    storage.addAttribute(.font, value: NSFont.boldSystemFont(ofSize: 15), range: range)
-                }
-
-                // 3. Inline Code
-                self.applyRegex(pattern: #"`(.+?)`"#, in: line, lineOffset: lineRange.location, storage: storage) { range in
-                    storage.addAttribute(.font, value: NSFont.monospacedSystemFont(ofSize: 14, weight: .medium), range: range)
-                    storage.addAttribute(.backgroundColor, value: NSColor.labelColor.withAlphaComponent(0.05), range: range)
-                }
-                
-                // 4. Checkboxes
-                if line.contains("- [ ]") {
-                    let nsLine = line as NSString
-                    let rangeInLine = nsLine.range(of: "- [ ]")
-                    let checkboxRange = NSRange(location: lineRange.location + rangeInLine.location, length: rangeInLine.length)
-                    storage.addAttribute(.foregroundColor, value: NSColor.systemBlue, range: checkboxRange)
-                    storage.addAttribute(.font, value: NSFont.boldSystemFont(ofSize: 15), range: checkboxRange)
-                } else if line.contains("- [x]") {
-                    storage.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor, range: lineRange)
-                    storage.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: lineRange)
-                }
-            }
+            // Utilisation du nouveau parser AST
+            parser.parseAndApply(to: storage)
 
             isRendering = false
-        }
-
-        private func applyRegex(pattern: String, in line: String, lineOffset: Int, storage: NSTextStorage, action: (NSRange) -> Void) {
-            guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return }
-            let range = NSRange(location: 0, length: (line as NSString).length)
-            regex.enumerateMatches(in: line, options: [], range: range) { match, _, _ in
-                if let matchRange = match?.range(at: 0) {
-                    let fullRange = NSRange(location: lineOffset + matchRange.location, length: matchRange.length)
-                    action(fullRange)
-                }
-            }
         }
     }
 }
