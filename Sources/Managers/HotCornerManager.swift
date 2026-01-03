@@ -79,6 +79,20 @@ class HotCornerManager: ObservableObject {
         }
     }
 
+    func showNote() {
+        DispatchQueue.main.async {
+            self.isNoteVisible = true
+            self.showNoteWindow()
+        }
+    }
+
+    func hideNote() {
+        DispatchQueue.main.async {
+            self.isNoteVisible = false
+            self.hideNoteWindow()
+        }
+    }
+
     private func showNoteWindow() {
         if let window = NSApp.windows.first(where: { $0.identifier?.rawValue == "NoteWindow" }) {
             window.makeKeyAndOrderFront(nil)
