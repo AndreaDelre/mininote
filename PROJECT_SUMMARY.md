@@ -13,8 +13,10 @@ Déplacer la souris → Coin inférieur droit → Note apparaît → Éditer en 
 | Fonctionnalité | Description | Statut |
 |----------------|-------------|--------|
 | **Hot Corner** | Affichage/masquage au coin inférieur droit | ✅ Implémenté |
-| **Markdown Live** | Rendu en temps réel pendant l'édition | ✅ Implémenté |
+| **Menu Bar Icon** | Icône système (SF Symbol) pour contrôle rapide | ✅ Implémenté |
+| **Markdown Live** | Rendu en temps réel avec parsing AST | ✅ Implémenté |
 | **Tasks Interactives** | Cases à cocher cliquables | ✅ Implémenté |
+| **Syntax Highlighting** | Coloration syntaxique pour les blocs de code | ✅ Implémenté |
 | **Auto-save** | Sauvegarde automatique avec debouncing | ✅ Implémenté |
 | **Persistance** | Stockage dans Application Support | ✅ Implémenté |
 | **Native macOS** | Intégration système complète | ✅ Implémenté |
@@ -29,7 +31,8 @@ mininote/
 │   │   ├── Note.swift               (Data model)
 │   │   └── NoteStore.swift          (State & persistence)
 │   ├── 📁 Managers/
-│   │   └── HotCornerManager.swift   (Hot corner logic)
+│   │   ├── 📁 HotCornerManager.swift   (Hot corner logic)
+│   │   └── 📁 MenuBarManager.swift     (Menu bar logic)
 │   └── 📁 Views/
 │       ├── NoteEditorView.swift     (Main view)
 │       └── MarkdownEditorView.swift (Custom editor)
@@ -77,11 +80,11 @@ mininote/
 ## 📊 Statistiques du code
 
 ```
-Total Files:     23 fichiers
-Swift Code:      ~536 lignes
-Documentation:   ~800+ lignes
+Total Files:     25 fichiers
+Swift Code:      ~838 lignes
+Documentation:   ~900+ lignes
 Configuration:   ~100 lignes
-Binary Size:     239 KB (optimisé)
+Binary Size:     ~250 KB (optimisé)
 Memory Usage:    2-3 MB (idle)
 ```
 
@@ -104,16 +107,16 @@ Memory Usage:    2-3 MB (idle)
 ### 1. Build
 ```bash
 cd /Users/andreadelre/Work/custom-apps/mininote
-make release
+make build
 ```
 
-### 2. Launch
+### 2. Launch (Méthode fiable)
 ```bash
-.build/release/MiniNote
+pkill MiniNote || true; sleep 2; .build/debug/MiniNote &
 ```
 
 ### 3. Grant Permissions
-**Réglages Système** → **Confidentialité** → **Accessibilité** → Activer **MiniNote**
+**Réglages Système** → **Confidentialité et sécurité** → **Accessibilité** → Activer **MiniNote**
 
 **C'est tout !** Déplacez votre souris au coin inférieur droit 🎉
 

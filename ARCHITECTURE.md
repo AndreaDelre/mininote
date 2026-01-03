@@ -126,6 +126,13 @@ let distance = sqrt(
 )
 ```
 
+### MenuBarManager
+
+Gère l'icône de la barre des menus et le menu contextuel.
+
+- **Icône système** : Utilise les SF Symbols (`square.and.pencil`) pour une intégration native parfaite qui s'adapte automatiquement aux modes clair et sombre.
+- **Menu contextuel** : Permet d'afficher/masquer la note manuellement, d'accéder aux informations "À propos" et de quitter l'application.
+
 #### Gestion de la fenêtre
 
 - `isReleasedWhenClosed = false` : La fenêtre reste en mémoire quand fermée

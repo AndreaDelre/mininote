@@ -41,10 +41,11 @@ Les tâches sont particulièrement bien intégrées :
 
 ```bash
 cd /path/to/mininote
-swift build -c release
+make build
+pkill MiniNote || true; sleep 2; .build/debug/MiniNote &
 ```
 
-L'exécutable sera créé dans `.build/release/MiniNote`
+L'exécutable sera créé dans `.build/debug/MiniNote`
 
 ### Permissions
 

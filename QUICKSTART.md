@@ -6,13 +6,13 @@
 
 ```bash
 cd /Users/andreadelre/Work/custom-apps/mininote
-make release
+make build
 ```
 
-### Étape 2 : Lancer l'application
+### Étape 2 : Lancer l'application (Méthode fiable)
 
 ```bash
-.build/release/MiniNote
+pkill MiniNote || true; sleep 2; .build/debug/MiniNote &
 ```
 
 Ou installer dans /Applications :

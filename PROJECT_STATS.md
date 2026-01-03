@@ -6,10 +6,10 @@
 
 ## Code Statistics
 
-- **Total Swift lines**: ~536 lignes
-- **Total files**: 18 fichiers
-- **Swift files**: 6 fichiers
-- **Documentation files**: 6 fichiers markdown
+- **Total Swift lines**: ~838 lignes
+- **Total files**: 20 fichiers
+- **Swift files**: 9 fichiers
+- **Documentation files**: 7 fichiers markdown
 
 ## File Breakdown
 
@@ -18,6 +18,9 @@
 - `Note.swift` - Data model
 - `NoteStore.swift` - State management & persistence
 - `HotCornerManager.swift` - Hot corner detection
+- `MenuBarManager.swift` - Menu bar integration
+- `MarkdownParser.swift` - AST-based markdown parsing
+- `SyntaxHighlighter.swift` - Code syntax highlighting (Splash)
 - `NoteEditorView.swift` - Main view
 - `MarkdownEditorView.swift` - Custom markdown editor
 
@@ -28,6 +31,7 @@
 - `QUICKSTART.md` - Quick start guide
 - `CHANGELOG.md` - Version history
 - `PROJECT_STATS.md` - This file
+- `_TODO.md` - Task list
 
 ### Configuration
 - `Package.swift` - Swift Package Manager
@@ -51,13 +55,15 @@
 - **Dependency Injection** (EnvironmentObject)
 - **Singleton** (AppState for bridge)
 - **Coordinator** (WindowDelegate)
+- **Visitor Pattern** (Markdown AST traversal)
 
 ### Technologies
 - **Swift 5.9+**
 - **SwiftUI** for views
 - **AppKit** for NSTextView integration
 - **Combine** for reactive state
-- **Foundation** for file I/O
+- **swift-markdown** (Apple) for parsing
+- **Splash** for syntax highlighting
 
 ## Features Implemented
 
@@ -65,6 +71,7 @@
 - ✓ Hot corner detection (bottom-right)
 - ✓ Markdown live rendering
 - ✓ Interactive task checkboxes
+- ✓ Menu bar icon (SF Symbol)
 - ✓ Auto-save with debouncing
 - ✓ Persistent storage
 - ✓ Native macOS integration
@@ -73,43 +80,34 @@
 - ✓ Headers (H1, H2, H3)
 - ✓ Bullet lists
 - ✓ Task lists with checkboxes
-- ✓ Bold text
-- ✓ Italic text
-- ✓ Inline code
-- ✓ Links (basic detection)
+- ✓ Bold & Italic text
+- ✓ Inline code & Code blocks (Syntax Highlighted)
+- ✓ Links (clickable)
+- ✓ Block quotes
 
 ## Development Metrics
 
 ### Build Performance
-- **Debug build**: ~2s
+- **Debug build**: ~3s (incremental)
 - **Release build**: ~30s
-- **Binary size**: 239 KB (optimized)
+- **Binary size**: ~250 KB (optimized)
 
 ### Memory Usage
 - **Idle**: ~2-3 MB
-- **Active editing**: ~5-8 MB
-- **No memory leaks detected**
+- **Active editing**: ~10-15 MB (depends on note size)
 
 ### Performance
 - **Hot corner check**: 100ms interval
 - **Auto-save debounce**: 500ms
-- **Markdown rendering**: Real-time (<16ms)
+- **Markdown rendering**: Real-time via NSTextStorage updates
 
 ## Code Quality
 
 ### Best Practices Applied
 - ✓ Single Responsibility Principle
 - ✓ Dependency Inversion
-- ✓ Clean Architecture
+- ✓ AST-based parsing (Robust)
 - ✓ Proper memory management (weak refs)
-- ✓ Error handling
-- ✓ Immutability by default
-
-### Code Organization
-- Clear separation of concerns
-- Consistent naming conventions
-- Documented public interfaces
-- Modular structure
 
 ## Testing Status
 
@@ -117,64 +115,23 @@
 - ⚠️ Unit tests: To be implemented
 - ⚠️ Integration tests: To be implemented
 - ⚠️ UI tests: To be implemented
-- ✓ Manual testing: Comprehensive
-
-### Test Plan (Future)
-- Unit tests for NoteStore
-- Unit tests for markdown parsing
-- UI tests for checkbox interaction
-- Integration tests for hot corner
-- Performance tests
-
-## Documentation Quality
-
-### User Documentation
-- ✓ README with installation guide
-- ✓ Quick start guide
-- ✓ Troubleshooting section
-- ✓ Feature overview
-
-### Developer Documentation
-- ✓ Architecture overview
-- ✓ Development workflow
-- ✓ Code examples
-- ✓ Best practices guide
-- ✓ Inline code comments
-
-## Project Health
-
-### Maintainability Score: A+
-- Clear architecture
-- Well-documented
-- Modular design
-- Easy to extend
-
-### Code Complexity: Low
-- Simple, focused modules
-- No cyclomatic complexity issues
-- Clean dependencies
-
-### Technical Debt: Minimal
-- No known critical issues
-- No major refactoring needed
-- Well-structured from start
+- ✓ Manual testing: Comprehensive (including relance procedures)
 
 ## Future Roadmap
 
 ### High Priority
+- [ ] Advanced Markdown Interpretation (Tables, Images, advanced styles)
+- [ ] Visual Task folding (Checkbox attachments)
 - [ ] Unit test coverage (target: 80%)
 - [ ] Multiple notes support
-- [ ] Custom themes
-- [ ] Keyboard shortcuts
 
 ### Medium Priority
 - [ ] iCloud sync
-- [ ] Export functionality
-- [ ] More markdown features
+- [ ] Custom themes (claire/sombre)
+- [ ] Keyboard shortcuts
 - [ ] Search functionality
 
 ### Low Priority
-- [ ] Menu bar icon
 - [ ] Configurable hot corners
 - [ ] Tags and categories
 - [ ] Statistics view
@@ -184,7 +141,7 @@
 The project is well-structured for contributions:
 - Clean codebase
 - Comprehensive documentation
-- Clear development guide
+- Clear development guide (including reliable launch method)
 - GitHub templates ready
 
 ## Conclusion
@@ -193,16 +150,16 @@ The project is well-structured for contributions:
 
 **Key Achievements:**
 - Clean, maintainable codebase
-- Comprehensive documentation
+- Robust markdown parsing via Apple's library
 - Native macOS experience
-- Solid foundation for future features
+- Documented reliable launch workflow
 
 **Lines of Code Distribution:**
-- Swift code: ~536 lines
-- Documentation: ~800+ lines
+- Swift code: ~838 lines
+- Documentation: ~900+ lines
 - Configuration: ~100 lines
 
-**Documentation-to-Code Ratio**: ~1.5:1 (Excellent)
+**Documentation-to-Code Ratio**: ~1.1:1 (Well balanced)
 
 ---
 

@@ -1,6 +1,24 @@
 #!/bin/bash
 
-# Output file
+# Update consolidated GEMINI.md in root
+echo "# GEMINI.md - Consolidated Project Documentation" > GEMINI.md
+echo "" >> GEMINI.md
+echo "This file contains a concatenation of all markdown documentation files in the repository." >> GEMINI.md
+echo "It is intended to provide a comprehensive context for the Gemini agent." >> GEMINI.md
+echo "" >> GEMINI.md
+
+for file in PROJECT_SUMMARY.md ARCHITECTURE.md DEVELOPMENT.md QUICKSTART.md README.md PROJECT_STATS.md CHANGELOG.md _TODO.md; do
+    if [ -f "$file" ]; then
+        echo "---" >> GEMINI.md
+        echo "" >> GEMINI.md
+        echo "## Content of $file" >> GEMINI.md
+        echo "" >> GEMINI.md
+        cat "$file" >> GEMINI.md
+        echo "" >> GEMINI.md
+    fi
+done
+
+# Output internal agent context file
 OUTPUT_FILE=".gemini/agent_context.md"
 
 # Header / System Prompt
@@ -14,7 +32,7 @@ echo "" >> "$OUTPUT_FILE"
 echo "## Project Documentation" >> "$OUTPUT_FILE"
 echo "" >> "$OUTPUT_FILE"
 
-for file in PROJECT_SUMMARY.md ARCHITECTURE.md DEVELOPMENT.md README.md; do
+for file in PROJECT_SUMMARY.md ARCHITECTURE.md DEVELOPMENT.md README.md PROJECT_STATS.md; do
     if [ -f "$file" ]; then
         echo "### Content of $file" >> "$OUTPUT_FILE"
         echo '```markdown' >> "$OUTPUT_FILE"
@@ -24,4 +42,4 @@ for file in PROJECT_SUMMARY.md ARCHITECTURE.md DEVELOPMENT.md README.md; do
     fi
 done
 
-echo "Context updated in $OUTPUT_FILE"
+echo "Context updated in GEMINI.md and $OUTPUT_FILE"
