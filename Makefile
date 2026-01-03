@@ -34,7 +34,9 @@ release:
 
 run: build
 	@echo "Running $(APP_NAME)..."
-	$(DEBUG_DIR)/$(APP_NAME)
+	@pkill $(APP_NAME) || true
+	@sleep 1
+	@$(DEBUG_DIR)/$(APP_NAME) &
 
 clean:
 	@echo "Cleaning build artifacts..."

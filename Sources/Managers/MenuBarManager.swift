@@ -26,45 +26,11 @@ class MenuBarManager: ObservableObject {
     }
 
     private func createNoteIcon() -> NSImage {
-        let size = NSSize(width: 18, height: 18)
-        let image = NSImage(size: size)
-
-        image.lockFocus()
-
-        NSColor.labelColor.setFill()
-
-        let path = NSBezierPath()
-        path.move(to: NSPoint(x: 3, y: 2))
-        path.line(to: NSPoint(x: 13, y: 2))
-        path.line(to: NSPoint(x: 15, y: 4))
-        path.line(to: NSPoint(x: 15, y: 16))
-        path.line(to: NSPoint(x: 3, y: 16))
-        path.close()
-        path.lineWidth = 1.5
-        path.stroke()
-
-        let line1 = NSBezierPath()
-        line1.move(to: NSPoint(x: 5, y: 13))
-        line1.line(to: NSPoint(x: 13, y: 13))
-        line1.lineWidth = 1.0
-        line1.stroke()
-
-        let line2 = NSBezierPath()
-        line2.move(to: NSPoint(x: 5, y: 10))
-        line2.line(to: NSPoint(x: 13, y: 10))
-        line2.lineWidth = 1.0
-        line2.stroke()
-
-        let line3 = NSBezierPath()
-        line3.move(to: NSPoint(x: 5, y: 7))
-        line3.line(to: NSPoint(x: 11, y: 7))
-        line3.lineWidth = 1.0
-        line3.stroke()
-
-        image.unlockFocus()
-        image.isTemplate = true
-
-        return image
+        let config = NSImage.SymbolConfiguration(pointSize: 18, weight: .regular)
+        if let image = NSImage(systemSymbolName: "square.and.pencil", accessibilityDescription: "MiniNote") {
+            return image.withSymbolConfiguration(config) ?? image
+        }
+        return NSImage(named: NSImage.actionTemplateName) ?? NSImage()
     }
 
     @objc private func statusItemClicked() {

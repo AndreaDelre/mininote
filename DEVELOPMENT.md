@@ -73,12 +73,18 @@ git checkout -b feature/nouvelle-fonctionnalite
 ### 2. Développement itératif
 
 ```bash
-# Cycle de dev rapide
-make build && make run
+# Cycle de dev rapide (recommandé)
+pkill MiniNote || true; sleep 2; swift build && .build/debug/MiniNote &
 
-# Ou avec Xcode
-# Cmd+B (build) puis Cmd+R (run)
+# Ou via Makefile
+make build && make run
 ```
+
+### Méthode de relance fiable
+Pour s'assurer que l'application est bien redémarrée avec les dernières modifications :
+1. Tuer l'instance existante : `pkill MiniNote || true`
+2. Attendre la libération des ressources : `sleep 2`
+3. Compiler et lancer le binaire directement : `swift build && .build/debug/MiniNote &`
 
 ### 3. Tests
 
