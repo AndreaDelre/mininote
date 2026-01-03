@@ -7,37 +7,15 @@ struct NoteEditorView: View {
     @FocusState private var isEditorFocused: Bool
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text("MiniNote")
-                    .font(.headline)
-                    .foregroundColor(.secondary)
-
-                Spacer()
-
-                Button(action: {
-                    hotCornerManager.isNoteVisible = false
-                }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
+        MarkdownEditorView(content: $editingContent)
+            .focused($isEditorFocused)
+            .padding(24) // Espace généreux pour le look minimaliste
+            .onAppear {
+                editingContent = noteStore.note.content
+                isEditorFocused = true
             }
-            .padding()
-            .background(Color(NSColor.windowBackgroundColor))
-
-            Divider()
-
-            MarkdownEditorView(content: $editingContent)
-                .focused($isEditorFocused)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .onAppear {
-            editingContent = noteStore.note.content
-            isEditorFocused = true
-        }
-        .onChange(of: editingContent) { newValue in
-            noteStore.updateContent(newValue)
-        }
+            .onChange(of: editingContent) { newValue in
+                noteStore.updateContent(newValue)
+            }
     }
 }

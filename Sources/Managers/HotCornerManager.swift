@@ -113,15 +113,27 @@ class HotCornerManager: ObservableObject {
     private func createNoteWindow() -> NSWindow {
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 600, height: 700),
-            styleMask: [.titled, .closable, .resizable, .miniaturizable],
+            styleMask: [.titled, .closable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
 
         window.identifier = NSUserInterfaceItemIdentifier("NoteWindow")
-        window.title = "MiniNote"
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.isMovableByWindowBackground = true
         window.center()
         window.isReleasedWhenClosed = false
+
+        // Masquer les boutons de contrôle classiques
+        window.standardWindowButton(.closeButton)?.isHidden = true
+        window.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        window.standardWindowButton(.zoomButton)?.isHidden = true
+
+        // Fond transparent et coins arrondis
+        window.backgroundColor = .clear
+        window.isOpaque = false
+        window.hasShadow = true
 
         guard let noteStore = AppState.shared.noteStore else {
             fatalError("NoteStore not initialized")
@@ -130,6 +142,8 @@ class HotCornerManager: ObservableObject {
         let contentView = NoteEditorView()
             .environmentObject(noteStore)
             .environmentObject(self)
+            .background(VisualEffectView(material: .hudWindow, blendingMode: .behindWindow))
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
 
         window.contentView = NSHostingView(rootView: contentView)
 
@@ -137,6 +151,25 @@ class HotCornerManager: ObservableObject {
         window.delegate = windowDelegate
 
         return window
+    }
+}
+
+// Helper pour l'effet de flou macOS
+struct VisualEffectView: NSViewRepresentable {
+    let material: NSVisualEffectView.Material
+    let blendingMode: NSVisualEffectView.BlendingMode
+
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = material
+        view.blendingMode = blendingMode
+        view.state = .active
+        return view
+    }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
+        nsView.material = material
+        nsView.blendingMode = blendingMode
     }
 }
 

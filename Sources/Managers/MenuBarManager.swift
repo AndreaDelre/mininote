@@ -31,8 +31,6 @@ class MenuBarManager: ObservableObject {
 
         image.lockFocus()
 
-        let rect = NSRect(origin: .zero, size: size)
-
         NSColor.labelColor.setFill()
 
         let path = NSBezierPath()
