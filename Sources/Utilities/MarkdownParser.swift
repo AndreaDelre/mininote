@@ -43,21 +43,24 @@ class MarkdownParser {
     /// Parses the markdown string and applies attributes to the provided NSTextStorage.
     func parseAndApply(to storage: NSTextStorage) {
         let text = storage.string
+        print("🔍 MarkdownParser parsing: '\(text)'")
+
         let document = Document(parsing: text)
-        
+        print("📄 Document children count: \(document.childCount)")
+
         storage.beginEditing()
-        
+
         // 1. Reset base attributes
         let fullRange = NSRange(location: 0, length: storage.length)
         storage.setAttributes([
             .font: theme.baseFont,
             .foregroundColor: theme.textColor
         ], range: fullRange)
-        
+
         // 2. Walk the AST
         var walker = AttributedStringWalker(storage: storage, text: text, theme: theme, highlighter: highlighter)
         walker.visit(document)
-        
+
         storage.endEditing()
     }
 }
@@ -100,10 +103,12 @@ private struct AttributedStringWalker: MarkupWalker {
     }
     
     mutating func visitHeading(_ heading: Heading) {
+        print("🎯 Found heading level \(heading.level)")
         if let range = nsRange(from: heading.range) {
+            print("   Range: \(range)")
             let font: NSFont
             let color: NSColor?
-            
+
             switch heading.level {
             case 1:
                 font = theme.h1Font
@@ -118,7 +123,7 @@ private struct AttributedStringWalker: MarkupWalker {
                 font = NSFont.boldSystemFont(ofSize: 14)
                 color = nil
             }
-            
+
             storage.addAttribute(.font, value: font, range: range)
             if let color = color {
                 storage.addAttribute(.foregroundColor, value: color, range: range)

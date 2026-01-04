@@ -140,7 +140,7 @@ struct BlockTextField: NSViewRepresentable {
     func makeNSView(context: Context) -> CustomTextView {
         let textView = CustomTextView()
         textView.delegate = context.coordinator
-        textView.isRichText = false
+        textView.isRichText = true // Must be true for markdown styling
         textView.isEditable = true
         textView.isSelectable = true
         textView.font = .systemFont(ofSize: 15)
@@ -166,8 +166,11 @@ struct BlockTextField: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: CustomTextView, context: Context) {
-        if nsView.string != text {
+        // Only update text if the change came from outside (not from user typing)
+        if !context.coordinator.isUpdatingFromTextView && nsView.string != text {
             nsView.string = text
+            // Force markdown styling on text change
+            nsView.applyMarkdownStyling()
             // Force layout recalculation after text change
             nsView.invalidateIntrinsicContentSize()
             nsView.layoutManager?.ensureLayout(for: nsView.textContainer!)
@@ -192,6 +195,7 @@ struct BlockTextField: NSViewRepresentable {
         @Binding var text: String
         var onSplit: (String, String) -> Void
         var onBackspaceAtStart: () -> Void
+        var isUpdatingFromTextView = false
 
         init(text: Binding<String>) {
             _text = text
@@ -201,7 +205,9 @@ struct BlockTextField: NSViewRepresentable {
 
         func textDidChange(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
+            isUpdatingFromTextView = true
             text = textView.string
+            isUpdatingFromTextView = false
         }
 
         func textView(_ textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
@@ -233,8 +239,10 @@ struct BlockTextField: NSViewRepresentable {
     }
 }
 
-/// Custom NSTextView that properly calculates its intrinsic content size
+/// Custom NSTextView that properly calculates its intrinsic content size and applies markdown styling
 class CustomTextView: NSTextView {
+    private let markdownParser = MarkdownParser()
+
     override var intrinsicContentSize: NSSize {
         guard let layoutManager = layoutManager,
               let textContainer = textContainer else {
@@ -253,5 +261,32 @@ class CustomTextView: NSTextView {
     override func didChangeText() {
         super.didChangeText()
         invalidateIntrinsicContentSize()
+
+        // Apply markdown styling
+        applyMarkdownStyling()
+    }
+
+    func applyMarkdownStyling() {
+        guard let textStorage = textStorage else {
+            print("❌ No textStorage available")
+            return
+        }
+
+        print("📝 Applying markdown styling to: '\(textStorage.string)'")
+
+        // Save cursor position
+        let selectedRange = self.selectedRange()
+
+        // Apply markdown parsing
+        markdownParser.parseAndApply(to: textStorage)
+
+        // Log attributes after parsing
+        if textStorage.length > 0 {
+            let attrs = textStorage.attributes(at: 0, effectiveRange: nil)
+            print("✅ Attributes applied: \(attrs)")
+        }
+
+        // Restore cursor position
+        self.setSelectedRange(selectedRange)
     }
 }
