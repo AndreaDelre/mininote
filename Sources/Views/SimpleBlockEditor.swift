@@ -21,6 +21,12 @@ struct SimpleBlockEditor: View {
                         },
                         onBackspaceAtStart: {
                             mergeWithPrevious(block.id)
+                        },
+                        onArrowUp: { cursorPosition in
+                            moveToPreviousBlock(block.id, cursorPosition: cursorPosition)
+                        },
+                        onArrowDown: { cursorPosition in
+                            moveToNextBlock(block.id, cursorPosition: cursorPosition)
                         }
                     )
                     .focused($focusedBlockId, equals: block.id)
@@ -107,6 +113,42 @@ struct SimpleBlockEditor: View {
             desiredCursorPosition = nil
         }
     }
+
+    private func moveToPreviousBlock(_ blockId: UUID, cursorPosition: Int) {
+        guard let index = blocks.firstIndex(where: { $0.id == blockId }), index > 0 else { return }
+
+        let previousIndex = index - 1
+        let previousBlockLength = blocks[previousIndex].content.count
+
+        // Set cursor position to the same column, but clamped to the previous block's length
+        desiredCursorPosition = min(cursorPosition, previousBlockLength)
+
+        // Focus the previous block
+        focusedBlockId = blocks[previousIndex].id
+
+        // Clear desired cursor position after the view updates
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            desiredCursorPosition = nil
+        }
+    }
+
+    private func moveToNextBlock(_ blockId: UUID, cursorPosition: Int) {
+        guard let index = blocks.firstIndex(where: { $0.id == blockId }), index < blocks.count - 1 else { return }
+
+        let nextIndex = index + 1
+        let nextBlockLength = blocks[nextIndex].content.count
+
+        // Set cursor position to the same column, but clamped to the next block's length
+        desiredCursorPosition = min(cursorPosition, nextBlockLength)
+
+        // Focus the next block
+        focusedBlockId = blocks[nextIndex].id
+
+        // Clear desired cursor position after the view updates
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            desiredCursorPosition = nil
+        }
+    }
 }
 
 /// Simple text block view with custom key handling
@@ -116,13 +158,17 @@ struct BlockTextView: View {
     let desiredCursorPosition: Int?
     let onSplit: (String, String) -> Void
     let onBackspaceAtStart: () -> Void
+    let onArrowUp: (Int) -> Void
+    let onArrowDown: (Int) -> Void
 
     var body: some View {
         BlockTextField(
             text: $block.content,
             desiredCursorPosition: desiredCursorPosition,
             onSplit: onSplit,
-            onBackspaceAtStart: onBackspaceAtStart
+            onBackspaceAtStart: onBackspaceAtStart,
+            onArrowUp: onArrowUp,
+            onArrowDown: onArrowDown
         )
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.red.opacity(0.2))
@@ -136,6 +182,8 @@ struct BlockTextField: NSViewRepresentable {
     let desiredCursorPosition: Int?
     let onSplit: (String, String) -> Void
     let onBackspaceAtStart: () -> Void
+    let onArrowUp: (Int) -> Void
+    let onArrowDown: (Int) -> Void
 
     func makeNSView(context: Context) -> CustomTextView {
         let textView = CustomTextView()
@@ -161,6 +209,8 @@ struct BlockTextField: NSViewRepresentable {
         // Store callbacks in coordinator
         context.coordinator.onSplit = onSplit
         context.coordinator.onBackspaceAtStart = onBackspaceAtStart
+        context.coordinator.onArrowUp = onArrowUp
+        context.coordinator.onArrowDown = onArrowDown
 
         return textView
     }
@@ -179,6 +229,8 @@ struct BlockTextField: NSViewRepresentable {
         // Update callbacks in coordinator
         context.coordinator.onSplit = onSplit
         context.coordinator.onBackspaceAtStart = onBackspaceAtStart
+        context.coordinator.onArrowUp = onArrowUp
+        context.coordinator.onArrowDown = onArrowDown
 
         // Set cursor position if specified
         if let position = desiredCursorPosition {
@@ -195,12 +247,16 @@ struct BlockTextField: NSViewRepresentable {
         @Binding var text: String
         var onSplit: (String, String) -> Void
         var onBackspaceAtStart: () -> Void
+        var onArrowUp: (Int) -> Void
+        var onArrowDown: (Int) -> Void
         var isUpdatingFromTextView = false
 
         init(text: Binding<String>) {
             _text = text
             self.onSplit = { _, _ in }
             self.onBackspaceAtStart = { }
+            self.onArrowUp = { _ in }
+            self.onArrowDown = { _ in }
         }
 
         func textDidChange(_ notification: Notification) {
@@ -231,6 +287,53 @@ struct BlockTextField: NSViewRepresentable {
                 if cursorPosition == 0 {
                     onBackspaceAtStart()
                     return true // Handled
+                }
+            }
+
+            if commandSelector == #selector(NSResponder.moveUp(_:)) {
+                // Up arrow pressed - check if we're on the first line
+                let cursorPosition = textView.selectedRange().location
+
+                // Get the line number of the cursor
+                guard let layoutManager = textView.layoutManager,
+                      let textContainer = textView.textContainer else {
+                    return false
+                }
+
+                let glyphIndex = layoutManager.glyphIndexForCharacter(at: cursorPosition)
+                var lineRange = NSRange()
+                layoutManager.lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: &lineRange)
+
+                // If cursor is on the first line (glyph range starts at 0), move to previous block
+                if lineRange.location == 0 {
+                    onArrowUp(cursorPosition)
+                    return true // Handled
+                }
+            }
+
+            if commandSelector == #selector(NSResponder.moveDown(_:)) {
+                // Down arrow pressed - check if we're on the last line
+                let cursorPosition = textView.selectedRange().location
+
+                guard let layoutManager = textView.layoutManager,
+                      let textContainer = textView.textContainer else {
+                    return false
+                }
+
+                let glyphIndex = layoutManager.glyphIndexForCharacter(at: cursorPosition)
+                var lineRange = NSRange()
+                layoutManager.lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: &lineRange)
+
+                // If cursor is on the last line, move to next block
+                let lastGlyphIndex = layoutManager.numberOfGlyphs - 1
+                if lastGlyphIndex >= 0 {
+                    var lastLineRange = NSRange()
+                    layoutManager.lineFragmentRect(forGlyphAt: lastGlyphIndex, effectiveRange: &lastLineRange)
+
+                    if lineRange.location == lastLineRange.location {
+                        onArrowDown(cursorPosition)
+                        return true // Handled
+                    }
                 }
             }
 
