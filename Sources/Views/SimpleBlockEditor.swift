@@ -55,6 +55,18 @@ struct SimpleBlockEditor: View {
             blocks = lines.map { SimpleBlock(content: $0) }
         }
 
+        // Log all block IDs to check for duplicates
+        let ids = blocks.map { $0.id }
+        let uniqueIds = Set(ids)
+        if ids.count != uniqueIds.count {
+            print("⚠️ DUPLICATE BLOCK IDs DETECTED!")
+            for id in ids {
+                print("  ID: \(id)")
+            }
+        } else {
+            print("✅ All block IDs are unique (\(ids.count) blocks)")
+        }
+
         // Focus first block
         if let firstId = blocks.first?.id {
             focusedBlockId = firstId
@@ -286,59 +298,45 @@ struct BlockTextField: NSViewRepresentable {
 
             if commandSelector == #selector(NSResponder.deleteBackward(_:)) {
                 // Backspace pressed
-                let cursorPosition = textView.selectedRange().location
+                let selectedRange = textView.selectedRange()
+                let cursorPosition = selectedRange.location
+                let hasSelection = selectedRange.length > 0
 
-                // If cursor is at the very beginning (position 0), merge with previous block
-                if cursorPosition == 0 {
+                // Only merge if cursor is at position 0 AND nothing is selected
+                // If text is selected, let normal delete behavior happen
+                if cursorPosition == 0 && !hasSelection {
                     onBackspaceAtStart()
                     return true // Handled
                 }
             }
 
             if commandSelector == #selector(NSResponder.moveUp(_:)) {
-                // Up arrow pressed - check if we're on the first line
+                // Up arrow pressed - always move to previous block if on first line
                 let cursorPosition = textView.selectedRange().location
+                let text = textView.string
 
-                // Get the line number of the cursor
-                guard let layoutManager = textView.layoutManager,
-                      let textContainer = textView.textContainer else {
-                    return false
-                }
+                // Check if cursor is on the first line (no newline before cursor)
+                let textBeforeCursor = text.prefix(cursorPosition)
+                let isOnFirstLine = !textBeforeCursor.contains("\n")
 
-                let glyphIndex = layoutManager.glyphIndexForCharacter(at: cursorPosition)
-                var lineRange = NSRange()
-                layoutManager.lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: &lineRange)
-
-                // If cursor is on the first line (glyph range starts at 0), move to previous block
-                if lineRange.location == 0 {
+                if isOnFirstLine {
                     onArrowUp(cursorPosition)
                     return true // Handled
                 }
             }
 
             if commandSelector == #selector(NSResponder.moveDown(_:)) {
-                // Down arrow pressed - check if we're on the last line
+                // Down arrow pressed - always move to next block if on last line
                 let cursorPosition = textView.selectedRange().location
+                let text = textView.string
 
-                guard let layoutManager = textView.layoutManager,
-                      let textContainer = textView.textContainer else {
-                    return false
-                }
+                // Check if cursor is on the last line (no newline after cursor)
+                let textAfterCursor = text.suffix(text.count - cursorPosition)
+                let isOnLastLine = !textAfterCursor.contains("\n")
 
-                let glyphIndex = layoutManager.glyphIndexForCharacter(at: cursorPosition)
-                var lineRange = NSRange()
-                layoutManager.lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: &lineRange)
-
-                // If cursor is on the last line, move to next block
-                let lastGlyphIndex = layoutManager.numberOfGlyphs - 1
-                if lastGlyphIndex >= 0 {
-                    var lastLineRange = NSRange()
-                    layoutManager.lineFragmentRect(forGlyphAt: lastGlyphIndex, effectiveRange: &lastLineRange)
-
-                    if lineRange.location == lastLineRange.location {
-                        onArrowDown(cursorPosition)
-                        return true // Handled
-                    }
+                if isOnLastLine {
+                    onArrowDown(cursorPosition)
+                    return true // Handled
                 }
             }
 
