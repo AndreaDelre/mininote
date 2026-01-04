@@ -17,6 +17,22 @@ struct SimpleBlock: Identifiable, Equatable {
         content.trimmingCharacters(in: .whitespaces).hasPrefix("- [X]")
     }
 
+    /// Checks if this block is a code block
+    var isCodeBlock: Bool {
+        content.trimmingCharacters(in: .whitespaces).hasPrefix("```")
+    }
+
+    /// Checks if the code block is closed (has ending ```)
+    var isCodeBlockClosed: Bool {
+        guard isCodeBlock else { return false }
+        let lines = content.split(separator: "\n", omittingEmptySubsequences: false)
+        // Need at least 2 lines: opening ``` and closing ```
+        if lines.count < 2 { return false }
+        // Check if last non-empty line ends with ```
+        let trimmedLast = lines.last?.trimmingCharacters(in: .whitespaces) ?? ""
+        return trimmedLast == "```" || trimmedLast.hasSuffix("```")
+    }
+
     /// Returns true if the task is checked
     var isTaskChecked: Bool {
         content.trimmingCharacters(in: .whitespaces).hasPrefix("- [x]") ||

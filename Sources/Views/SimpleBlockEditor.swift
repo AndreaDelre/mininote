@@ -17,6 +17,7 @@ struct SimpleBlockEditor: View {
                         block: $block,
                         isFocused: focusedBlockId == block.id,
                         desiredCursorPosition: focusedBlockId == block.id ? desiredCursorPosition : nil,
+                        shouldPreventSplit: block.isCodeBlock && !block.isCodeBlockClosed,
                         onSplit: { textBefore, textAfter in
                             splitBlock(block.id, textBefore: textBefore, textAfter: textAfter)
                         },
@@ -52,7 +53,45 @@ struct SimpleBlockEditor: View {
         if lines.isEmpty {
             blocks = [SimpleBlock(content: "")]
         } else {
-            blocks = lines.map { SimpleBlock(content: $0) }
+            // Parse lines and group code blocks together
+            var parsedBlocks: [SimpleBlock] = []
+            var i = 0
+
+            while i < lines.count {
+                let line = lines[i]
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+
+                // Check if this line starts a code block
+                if trimmed.hasPrefix("```") {
+                    // Accumulate lines until we find closing ```
+                    var codeBlockLines = [line]
+                    i += 1
+                    var foundClosing = false
+
+                    while i < lines.count {
+                        let nextLine = lines[i]
+                        codeBlockLines.append(nextLine)
+
+                        let trimmedNext = nextLine.trimmingCharacters(in: .whitespaces)
+                        if trimmedNext == "```" || trimmedNext.hasSuffix("```") {
+                            foundClosing = true
+                            i += 1
+                            break
+                        }
+                        i += 1
+                    }
+
+                    // Create a single block with all code lines
+                    let codeBlockContent = codeBlockLines.joined(separator: "\n")
+                    parsedBlocks.append(SimpleBlock(content: codeBlockContent))
+                } else {
+                    // Regular line - create a block
+                    parsedBlocks.append(SimpleBlock(content: line))
+                    i += 1
+                }
+            }
+
+            blocks = parsedBlocks
         }
 
         // Log all block IDs to check for duplicates
@@ -179,6 +218,7 @@ struct BlockTextView: View {
         BlockTextField(
             text: $block.content,
             desiredCursorPosition: desiredCursorPosition,
+            shouldPreventSplit: block.isCodeBlock && !block.isCodeBlockClosed,
             onSplit: onSplit,
             onBackspaceAtStart: onBackspaceAtStart,
             onArrowUp: onArrowUp,
@@ -194,6 +234,7 @@ struct BlockTextView: View {
 struct BlockTextField: NSViewRepresentable {
     @Binding var text: String
     let desiredCursorPosition: Int?
+    let shouldPreventSplit: Bool
     let onSplit: (String, String) -> Void
     let onBackspaceAtStart: () -> Void
     let onArrowUp: (Int) -> Void
@@ -220,7 +261,8 @@ struct BlockTextField: NSViewRepresentable {
             container.containerSize = NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude)
         }
 
-        // Store callbacks in coordinator
+        // Store callbacks and settings in coordinator
+        context.coordinator.shouldPreventSplit = shouldPreventSplit
         context.coordinator.onSplit = onSplit
         context.coordinator.onBackspaceAtStart = onBackspaceAtStart
         context.coordinator.onArrowUp = onArrowUp
@@ -240,7 +282,8 @@ struct BlockTextField: NSViewRepresentable {
             nsView.layoutManager?.ensureLayout(for: nsView.textContainer!)
         }
 
-        // Update callbacks in coordinator
+        // Update callbacks and settings in coordinator
+        context.coordinator.shouldPreventSplit = shouldPreventSplit
         context.coordinator.onSplit = onSplit
         context.coordinator.onBackspaceAtStart = onBackspaceAtStart
         context.coordinator.onArrowUp = onArrowUp
@@ -259,6 +302,7 @@ struct BlockTextField: NSViewRepresentable {
 
     class Coordinator: NSObject, NSTextViewDelegate {
         @Binding var text: String
+        var shouldPreventSplit: Bool = false
         var onSplit: (String, String) -> Void
         var onBackspaceAtStart: () -> Void
         var onArrowUp: (Int) -> Void
@@ -288,7 +332,35 @@ struct BlockTextField: NSViewRepresentable {
                 // Enter key pressed
                 let cursorPosition = textView.selectedRange().location
                 let fullText = textView.string
+                let trimmed = fullText.trimmingCharacters(in: .whitespaces)
 
+                // Check if this is a code block (starts with ```)
+                if trimmed.hasPrefix("```") {
+                    // Check if cursor is at the very end of the block
+                    let textAfter = String(fullText.suffix(fullText.count - cursorPosition))
+                    let trimmedAfter = textAfter.trimmingCharacters(in: .whitespaces)
+
+                    // If there's content after cursor (not at end), allow normal newline
+                    if !trimmedAfter.isEmpty {
+                        return false // Let NSTextView handle newline normally
+                    }
+
+                    // Cursor is at the end - check if block is properly closed
+                    // Must: start with ```, end with ```, have at least 6 backticks total
+                    let backtickCount = fullText.filter { $0 == "`" }.count
+                    if trimmed.hasPrefix("```") && trimmed.hasSuffix("```") && backtickCount >= 6 {
+                        // Valid closed code block at end - allow split
+                        let textBefore = String(fullText.prefix(cursorPosition))
+                        let textAfter = String(fullText.suffix(fullText.count - cursorPosition))
+                        onSplit(textBefore, textAfter)
+                        return true // Handled
+                    }
+
+                    // Code block not properly closed or not at end - normal newline
+                    return false // Let NSTextView handle newline normally
+                }
+
+                // Not a code block - normal split behavior
                 let textBefore = String(fullText.prefix(cursorPosition))
                 let textAfter = String(fullText.suffix(fullText.count - cursorPosition))
 
@@ -383,8 +455,13 @@ class CustomTextView: NSTextView {
         // Save cursor position
         let selectedRange = self.selectedRange()
 
-        // Apply markdown parsing
-        markdownParser.parseAndApply(to: textStorage)
+        // Apply markdown parsing with safety
+        do {
+            markdownParser.parseAndApply(to: textStorage)
+        } catch {
+            print("⚠️ Markdown parsing error: \(error)")
+            // Don't crash, just skip styling for this update
+        }
 
         // Log attributes after parsing
         if textStorage.length > 0 {
@@ -392,8 +469,12 @@ class CustomTextView: NSTextView {
             print("✅ Attributes applied: \(attrs)")
         }
 
-        // Restore cursor position
-        self.setSelectedRange(selectedRange)
+        // Restore cursor position safely
+        let safeRange = NSRange(
+            location: min(selectedRange.location, textStorage.length),
+            length: min(selectedRange.length, textStorage.length - min(selectedRange.location, textStorage.length))
+        )
+        self.setSelectedRange(safeRange)
     }
 }
 
@@ -429,6 +510,7 @@ struct CheckboxBlockView: View {
                     }
                 ),
                 desiredCursorPosition: desiredCursorPosition,
+                shouldPreventSplit: false, // Tasks don't prevent split
                 onSplit: { textBefore, textAfter in
                     // When splitting, add the checkbox prefix back
                     let prefix = block.isTaskChecked ? "- [x] " : "- [ ] "
@@ -450,6 +532,7 @@ struct UnifiedBlockView: View {
     @Binding var block: SimpleBlock
     let isFocused: Bool
     let desiredCursorPosition: Int?
+    let shouldPreventSplit: Bool
     let onSplit: (String, String) -> Void
     let onBackspaceAtStart: () -> Void
     let onArrowUp: (Int) -> Void
@@ -496,6 +579,7 @@ struct UnifiedBlockView: View {
                     }
                 ),
                 desiredCursorPosition: showCheckbox ? nil : desiredCursorPosition,
+                shouldPreventSplit: shouldPreventSplit,
                 onSplit: { textBefore, textAfter in
                     if showCheckbox {
                         // Add prefix back when splitting
