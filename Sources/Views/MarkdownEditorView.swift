@@ -58,47 +58,82 @@ struct MarkdownEditorView: NSViewRepresentable {
 
     // Custom TextView pour gérer le clic précisément
     class MiniNoteTextView: NSTextView {
+        override func draw(_ dirtyRect: NSRect) {
+            super.draw(dirtyRect)
+
+            // Draw checkboxes over the invisible markdown text
+            guard let storage = textStorage, let layoutManager = layoutManager, let textContainer = textContainer else { return }
+
+            let checkboxSize: CGFloat = 16
+            let textRange = NSRange(location: 0, length: storage.length)
+
+            storage.enumerateAttribute(NSAttributedString.Key("isCheckbox"), in: textRange, options: []) { value, range, _ in
+                guard let isChecked = value as? Bool else { return }
+
+                // Get the glyph position for this character
+                let glyphRange = layoutManager.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
+                guard glyphRange.length > 0 else { return }
+
+                let glyphRect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: textContainer)
+                let checkboxRect = CGRect(
+                    x: glyphRect.origin.x + textContainerInset.width,
+                    y: glyphRect.origin.y + textContainerInset.height + (glyphRect.height - checkboxSize) / 2,
+                    width: checkboxSize,
+                    height: checkboxSize
+                )
+
+                // Draw the checkbox
+                let path = NSBezierPath(roundedRect: checkboxRect.insetBy(dx: 0.75, dy: 0.75), xRadius: 3, yRadius: 3)
+
+                if isChecked {
+                    NSColor.systemBlue.setFill()
+                    path.fill()
+                }
+
+                NSColor.tertiaryLabelColor.setStroke()
+                path.lineWidth = 1.5
+                path.stroke()
+
+                // Draw checkmark if checked
+                if isChecked {
+                    let checkPath = NSBezierPath()
+                    let checkSize = checkboxSize * 0.6
+                    let offsetX = checkboxRect.minX + (checkboxSize - checkSize) / 2
+                    let offsetY = checkboxRect.minY + (checkboxSize - checkSize) / 2
+
+                    checkPath.move(to: CGPoint(x: offsetX + checkSize * 0.2, y: offsetY + checkSize * 0.5))
+                    checkPath.line(to: CGPoint(x: offsetX + checkSize * 0.4, y: offsetY + checkSize * 0.3))
+                    checkPath.line(to: CGPoint(x: offsetX + checkSize * 0.8, y: offsetY + checkSize * 0.7))
+
+                    NSColor.white.setStroke()
+                    checkPath.lineWidth = 2
+                    checkPath.lineCapStyle = .round
+                    checkPath.lineJoinStyle = .round
+                    checkPath.stroke()
+                }
+            }
+        }
+
         override func mouseDown(with event: NSEvent) {
             // Convertir le point du clic dans le système de coordonnées de la vue
             let point = self.convert(event.locationInWindow, from: nil)
-            
+
             // Trouver l'index du caractère sous la souris
             let layoutManager = self.layoutManager!
             let textContainer = self.textContainer!
             let charIndex = layoutManager.characterIndex(for: point, in: textContainer, fractionOfDistanceBetweenInsertionPoints: nil)
-            
-            if charIndex < self.string.count {
-                // Analyser la ligne cliquée
-                let nsString = self.string as NSString
-                let lineRange = nsString.lineRange(for: NSRange(location: charIndex, length: 0))
-                let line = nsString.substring(with: lineRange)
-                
-                // Vérifier si c'est une checkbox
-                // On cherche exactement "- [ ]" ou "- [x]" au début (ou après whitespace)
-                // Mais pour simplifier l'UX, on regarde si le clic est sur les 5 premiers caractères de la ligne checkbox
-                
-                let checkboxPattern = #"- \[( |x)\]"#
-                if let regex = try? NSRegularExpression(pattern: checkboxPattern, options: []) {
-                    let rangeInLine = NSRange(location: 0, length: (line as NSString).length)
-                    if let match = regex.firstMatch(in: line, options: [], range: rangeInLine) {
-                        // La checkbox est trouvée dans la ligne
-                        // Calculons sa position absolue dans le texte global
-                        let checkboxAbsStart = lineRange.location + match.range.location
-                        let checkboxAbsEnd = checkboxAbsStart + match.range.length // Longueur de "- [ ]" (5 chars)
-                        
-                        // Si le clic est DANS la zone de la checkbox
-                        if charIndex >= checkboxAbsStart && charIndex < checkboxAbsEnd {
-                            // C'est un clic sur la checkbox -> Toggle
-                            if let delegate = self.delegate as? Coordinator {
-                                delegate.toggleCheckbox(at: lineRange, line: line)
-                            }
-                            // IMPORTANT : On ne fait pas super.mouseDown() pour éviter de changer la sélection
-                            return
-                        }
+
+            if charIndex < self.textStorage!.length {
+                // Check if we clicked on a checkbox
+                if let isChecked = self.textStorage?.attribute(NSAttributedString.Key("isCheckbox"), at: charIndex, effectiveRange: nil) as? Bool {
+                    // Toggle the checkbox
+                    if let delegate = self.delegate as? Coordinator {
+                        delegate.toggleCheckbox(at: charIndex, currentState: isChecked)
                     }
+                    return
                 }
             }
-            
+
             // Comportement standard (déplacer curseur, sélectionner texte)
             super.mouseDown(with: event)
         }
@@ -119,26 +154,31 @@ struct MarkdownEditorView: NSViewRepresentable {
             content = textView.string
             renderMarkdown()
         }
-        
-        func toggleCheckbox(at lineRange: NSRange, line: String) {
+
+        func toggleCheckbox(at charIndex: Int, currentState: Bool) {
             guard let textView = textView else { return }
-            
-            var newContent = textView.string
-            let nsNewContent = newContent as NSString
-            
-            if line.contains("- [ ]") {
-                let newLine = line.replacingOccurrences(of: "- [ ]", with: "- [x]")
-                newContent = nsNewContent.replacingCharacters(in: lineRange, with: newLine)
-            } else if line.contains("- [x]") {
+
+            // Get the line containing the checkbox from the current text
+            let currentText = textView.string as NSString
+            let lineRange = currentText.lineRange(for: NSRange(location: charIndex, length: 0))
+            let line = currentText.substring(with: lineRange)
+
+            // Toggle the checkbox in the markdown
+            var newContent = currentText as String
+
+            if currentState {
+                // Currently checked, uncheck it
                 let newLine = line.replacingOccurrences(of: "- [x]", with: "- [ ]")
-                newContent = nsNewContent.replacingCharacters(in: lineRange, with: newLine)
+                    .replacingOccurrences(of: "- [X]", with: "- [ ]")
+                newContent = currentText.replacingCharacters(in: lineRange, with: newLine)
+            } else {
+                // Currently unchecked, check it
+                let newLine = line.replacingOccurrences(of: "- [ ]", with: "- [x]")
+                newContent = currentText.replacingCharacters(in: lineRange, with: newLine)
             }
-            
-            // Mise à jour via le binding SwiftUI
+
+            // Update the content binding
             self.content = newContent
-            // Mise à jour locale immédiate pour réactivité
-            textView.string = newContent
-            renderMarkdown()
         }
 
         func renderMarkdown() {

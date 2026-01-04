@@ -197,9 +197,43 @@ private struct AttributedStringWalker: MarkupWalker {
     mutating func visitListItem(_ listItem: ListItem) {
         if let checkbox = listItem.checkbox {
             if let range = nsRange(from: listItem.range) {
-                if checkbox == .checked {
-                    storage.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: range)
-                    storage.addAttribute(.foregroundColor, value: theme.secondaryColor, range: range)
+                let isChecked = checkbox == .checked
+
+                // Find the line containing this list item
+                let fullText = storage.string as NSString
+                let lineRange = fullText.lineRange(for: range)
+                let line = fullText.substring(with: lineRange)
+
+                // Find the checkbox pattern "- [ ]" or "- [x]"
+                let checkboxPattern = #"^(\s*)- \[([ xX])\]( )?"#
+
+                if let regex = try? NSRegularExpression(pattern: checkboxPattern, options: []),
+                   let match = regex.firstMatch(in: line, options: [], range: NSRange(location: 0, length: line.count)) {
+
+                    // Calculate absolute position of the checkbox marker in the document
+                    let checkboxAbsoluteRange = NSRange(
+                        location: lineRange.location + match.range.location,
+                        length: match.range.length
+                    )
+
+                    // Make the "- [ ]" or "- [x]" part transparent
+                    storage.addAttribute(.foregroundColor, value: NSColor.clear, range: checkboxAbsoluteRange)
+
+                    // Add a custom attribute to mark this as a checkbox location
+                    storage.addAttribute(NSAttributedString.Key("isCheckbox"), value: isChecked, range: NSRange(location: checkboxAbsoluteRange.location, length: 1))
+
+                    // Apply styling to the task text (text after the checkbox pattern)
+                    let textStart = checkboxAbsoluteRange.location + checkboxAbsoluteRange.length
+                    let textLength = (lineRange.location + lineRange.length) - textStart
+
+                    if textLength > 0 && textStart + textLength <= storage.length {
+                        let textRange = NSRange(location: textStart, length: textLength)
+
+                        if isChecked {
+                            storage.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: textRange)
+                            storage.addAttribute(.foregroundColor, value: theme.secondaryColor, range: textRange)
+                        }
+                    }
                 }
             }
         }
