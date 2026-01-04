@@ -23,11 +23,11 @@ class MarkdownParser {
         let quoteColor: NSColor
         
         static let `default` = Theme(
-            baseFont: .systemFont(ofSize: 15),
-            h1Font: .boldSystemFont(ofSize: 26),
-            h2Font: .boldSystemFont(ofSize: 20),
-            h3Font: .boldSystemFont(ofSize: 17),
-            codeFont: .monospacedSystemFont(ofSize: 14, weight: .regular),
+            baseFont: NSFont(name: "Menlo", size: 15) ?? .monospacedSystemFont(ofSize: 15, weight: .medium),
+            h1Font: NSFont(name: "Menlo-Bold", size: 26) ?? .monospacedSystemFont(ofSize: 26, weight: .bold),
+            h2Font: NSFont(name: "Menlo-Bold", size: 20) ?? .monospacedSystemFont(ofSize: 20, weight: .bold),
+            h3Font: NSFont(name: "Menlo-Bold", size: 17) ?? .monospacedSystemFont(ofSize: 17, weight: .bold),
+            codeFont: .monospacedSystemFont(ofSize: 14, weight: .medium),
             textColor: .labelColor,
             secondaryColor: .secondaryLabelColor,
             accentColor: .systemBlue,
@@ -43,10 +43,7 @@ class MarkdownParser {
     /// Parses the markdown string and applies attributes to the provided NSTextStorage.
     func parseAndApply(to storage: NSTextStorage) {
         let text = storage.string
-        print("🔍 MarkdownParser parsing: '\(text)'")
-
         let document = Document(parsing: text)
-        print("📄 Document children count: \(document.childCount)")
 
         storage.beginEditing()
 
@@ -103,9 +100,7 @@ private struct AttributedStringWalker: MarkupWalker {
     }
     
     mutating func visitHeading(_ heading: Heading) {
-        print("🎯 Found heading level \(heading.level)")
         if let range = nsRange(from: heading.range) {
-            print("   Range: \(range)")
             let font: NSFont
             let color: NSColor?
 
@@ -249,5 +244,9 @@ private struct AttributedStringWalker: MarkupWalker {
 extension NSFont {
     func italic() -> NSFont {
         return NSFontManager.shared.convert(self, toHaveTrait: .italicFontMask)
+    }
+
+    func bold() -> NSFont {
+        return NSFontManager.shared.convert(self, toHaveTrait: .boldFontMask)
     }
 }

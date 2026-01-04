@@ -14,12 +14,17 @@ MiniNote/
 │   ├── MiniNoteApp.swift          # Entry point & app lifecycle
 │   ├── Models/                     # Data layer
 │   │   ├── Note.swift             # Domain model
-│   │   └── NoteStore.swift        # State management & persistence
+│   │   ├── NoteStore.swift        # State management & persistence
+│   │   └── SimpleBlock.swift      # Block model (text, task, code)
 │   ├── Managers/                   # Business logic layer
-│   │   └── HotCornerManager.swift # Hot corner detection & window management
+│   │   ├── HotCornerManager.swift # Hot corner detection & window management
+│   │   └── MenuBarManager.swift   # Menu bar icon & menu
+│   ├── Utilities/                  # Helpers & parsers
+│   │   ├── MarkdownParser.swift   # AST-based markdown parser
+│   │   └── CodeSyntaxHighlighter.swift # Code syntax highlighting
 │   └── Views/                      # Presentation layer
 │       ├── NoteEditorView.swift   # Main view composition
-│       └── MarkdownEditorView.swift # Custom markdown editor
+│       └── SimpleBlockEditor.swift # Block-based editor
 ├── Info.plist                      # App configuration & permissions
 └── Package.swift                   # Swift Package Manager manifest
 ```
@@ -139,38 +144,71 @@ Gère l'icône de la barre des menus et le menu contextuel.
 - Réutilisation de la fenêtre existante au lieu d'en créer une nouvelle
 - WindowDelegate stocké dans une propriété pour éviter la deallocation
 
-### MarkdownEditorView
+### SimpleBlockEditor
 
-Éditeur markdown personnalisé utilisant `NSViewRepresentable`.
+Éditeur basé sur une architecture de blocs utilisant `NSViewRepresentable`.
 
-#### Pourquoi NSTextView au lieu de TextEditor ?
+#### Pourquoi une architecture par blocs ?
 
-- TextEditor SwiftUI est trop limité
-- NSTextView permet le contrôle total sur le rendu
-- Permet d'ajouter des GestureRecognizers personnalisés
+- **Flexibilité** : Chaque bloc peut avoir son propre comportement (texte, tâche, code)
+- **Performance** : Seul le bloc édité est re-rendu
+- **UX** : Navigation fluide entre blocs avec les flèches
+- **Extensibilité** : Facile d'ajouter de nouveaux types de blocs
+
+#### Types de blocs supportés
+
+1. **Text Block** : Texte simple avec markdown styling
+2. **Task Block** : Checkbox SwiftUI + texte éditable
+3. **Code Block** : Multi-ligne avec syntax highlighting
+
+#### Architecture des blocs
+
+```swift
+struct SimpleBlock: Identifiable {
+    let id: UUID
+    var content: String
+
+    var isTask: Bool { /* détection "- [ ]" */ }
+    var isCodeBlock: Bool { /* détection "```" */ }
+    var isCodeBlockClosed: Bool { /* vérifie fermeture */ }
+}
+```
+
+#### Gestion des opérations
+
+- **Split** (Enter) : Crée un nouveau bloc après le curseur
+- **Merge** (Backspace) : Fusionne avec le bloc précédent
+- **Arrow Up/Down** : Navigation inter-blocs avec préservation de la position du curseur
+
+#### Code blocks spéciaux
+
+Les blocs de code ont un comportement unique :
+- Commencent par \`\`\` sur une ligne
+- Permettent les retours à la ligne internes (pas de split)
+- Ne se divisent que lorsqu'ils sont fermés avec \`\`\` et le curseur à la fin
 
 #### Rendu markdown en temps réel
 
-Le rendu se fait via `NSAttributedString` :
+Utilise `swift-markdown` pour le parsing AST :
 
 ```swift
-storage.addAttribute(.font, value: NSFont.boldSystemFont(ofSize: 24), range: lineRange)
+let document = Document(parsing: text)
+var walker = AttributedStringWalker(storage: storage, theme: theme)
+walker.visit(document)
 ```
 
-**Stratégie** :
-1. Parser ligne par ligne (évite les regex complexes)
-2. Appliquer les styles via NSTextStorage
-3. Rendering incrémental (pas de re-render complet)
+**Avantages** :
+1. Parser robuste basé sur CommonMark
+2. AST complet pour navigation précise
+3. Support natif des éléments markdown complexes
+4. Syntax highlighting via Splash pour les code blocks
 
 #### Interaction avec les checkboxes
 
-```swift
-@objc func handleClick(_ recognizer: NSClickGestureRecognizer)
-```
-
-- Détecte le clic sur une checkbox (caractères 0-6 de la ligne)
-- Modifie directement le contenu markdown
-- Trigger le re-render automatiquement
+- Rendu via Toggle SwiftUI natif
+- Texte markdown (\`- [ ]\`) caché via `.foregroundColor(.clear)`
+- Attribut personnalisé `isCheckbox` pour le positionnement
+- Clique sur le Toggle modifie directement le `SimpleBlock.content`
 
 ## Performance
 
@@ -215,18 +253,38 @@ Pour une distribution sur l'App Store, il faudrait :
 
 ### Comment ajouter une nouvelle feature
 
-#### 1. Ajouter un nouveau type de markdown
+#### 1. Ajouter un nouveau type de bloc
 
-Dans `MarkdownEditorView.swift`, méthode `renderInlineMarkdown` :
+Dans `SimpleBlock.swift`, ajouter la détection :
 
 ```swift
-let newPattern = "~~(.+?)~~"  // Strikethrough
-applyPattern(newPattern, in: line, range: range, storage: storage) { matchRange in
-    storage.addAttribute(.strikethroughStyle, value: 1, range: matchRange)
+var isQuoteBlock: Bool {
+    content.trimmingCharacters(in: .whitespaces).hasPrefix(">")
 }
 ```
 
-#### 2. Ajouter un nouveau hot corner
+Dans `UnifiedBlockView`, ajouter le rendu spécifique :
+
+```swift
+if block.isQuoteBlock {
+    // Custom view pour quotes
+}
+```
+
+#### 2. Ajouter un nouveau style markdown
+
+Dans `MarkdownParser.swift`, ajouter une méthode visitor :
+
+```swift
+mutating func visitStrikethrough(_ strikethrough: Strikethrough) {
+    if let range = nsRange(from: strikethrough.range) {
+        storage.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: range)
+    }
+    descendInto(strikethrough)
+}
+```
+
+#### 3. Ajouter un nouveau hot corner
 
 Dans `HotCornerManager.swift`, dupliquer la logique :
 
@@ -237,7 +295,7 @@ private func checkTopLeftCorner() {
 }
 ```
 
-#### 3. Ajouter de nouvelles notes
+#### 4. Ajouter de nouvelles notes
 
 Modifier `NoteStore` pour gérer un array :
 

@@ -5,6 +5,36 @@ All notable changes to MiniNote will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-01-04
+
+### Major Changes
+- **Block-based editor architecture**: Complete rewrite from single text view to block-based system
+- **AST-based markdown parsing**: Replaced regex with swift-markdown library for robust parsing
+- **Enhanced code block support**: Multi-line code blocks with syntax highlighting via Splash
+
+### Added
+- Block-based text editor with three block types: text, task, and code
+- Smart block navigation with arrow keys (up/down between blocks)
+- Code blocks with proper multi-line editing and closing detection
+- Syntax highlighting for code blocks (Swift, Python, JavaScript, etc.)
+- Menu bar icon for quick access and manual show/hide
+- Task blocks with native SwiftUI checkbox integration
+- Improved markdown rendering with CommonMark compliance
+
+### Fixed
+- Space key requiring double-press in task blocks
+- Arrow navigation not working in empty blocks
+- Cmd+A then Delete causing crashes and incorrect merge behavior
+- Backtick input causing crashes during markdown parsing
+- Code blocks being split into multiple blocks on app reload
+
+### Technical
+- New `SimpleBlock` model with `Identifiable` for efficient SwiftUI rendering
+- Block split/merge operations with cursor position preservation
+- AST walker pattern for markdown attribute application
+- Crash protection with try-catch in markdown parsing
+- Smart code block detection and closure validation (≥6 backticks)
+
 ## [1.0.0] - 2026-01-03
 
 ### Added

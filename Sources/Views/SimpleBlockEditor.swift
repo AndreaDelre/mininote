@@ -246,7 +246,7 @@ struct BlockTextField: NSViewRepresentable {
         textView.isRichText = true // Must be true for markdown styling
         textView.isEditable = true
         textView.isSelectable = true
-        textView.font = .systemFont(ofSize: 15)
+        textView.font = NSFont(name: "Menlo", size: 15) ?? .monospacedSystemFont(ofSize: 15, weight: .medium)
         textView.textColor = .labelColor
         textView.drawsBackground = false
         textView.backgroundColor = .clear

@@ -12,11 +12,13 @@ Déplacer la souris → Coin inférieur droit → Note apparaît → Éditer en 
 
 | Fonctionnalité | Description | Statut |
 |----------------|-------------|--------|
+| **Block-based Editor** | Architecture par blocs (text, task, code) | ✅ Implémenté |
 | **Hot Corner** | Affichage/masquage au coin inférieur droit | ✅ Implémenté |
 | **Menu Bar Icon** | Icône système (SF Symbol) pour contrôle rapide | ✅ Implémenté |
 | **Markdown Live** | Rendu en temps réel avec parsing AST | ✅ Implémenté |
-| **Tasks Interactives** | Cases à cocher cliquables | ✅ Implémenté |
-| **Syntax Highlighting** | Coloration syntaxique pour les blocs de code | ✅ Implémenté |
+| **Tasks Interactives** | Cases à cocher cliquables natives SwiftUI | ✅ Implémenté |
+| **Code Blocks** | Multi-ligne avec syntax highlighting (Splash) | ✅ Implémenté |
+| **Block Navigation** | Navigation fluide avec flèches haut/bas | ✅ Implémenté |
 | **Auto-save** | Sauvegarde automatique avec debouncing | ✅ Implémenté |
 | **Persistance** | Stockage dans Application Support | ✅ Implémenté |
 | **Native macOS** | Intégration système complète | ✅ Implémenté |
@@ -29,13 +31,17 @@ mininote/
 │   ├── 🚀 MiniNoteApp.swift         (Entry point)
 │   ├── 📁 Models/
 │   │   ├── Note.swift               (Data model)
-│   │   └── NoteStore.swift          (State & persistence)
+│   │   ├── NoteStore.swift          (State & persistence)
+│   │   └── SimpleBlock.swift        (Block model)
 │   ├── 📁 Managers/
-│   │   ├── 📁 HotCornerManager.swift   (Hot corner logic)
-│   │   └── 📁 MenuBarManager.swift     (Menu bar logic)
+│   │   ├── HotCornerManager.swift   (Hot corner logic)
+│   │   └── MenuBarManager.swift     (Menu bar logic)
+│   ├── 📁 Utilities/
+│   │   ├── MarkdownParser.swift     (AST parser)
+│   │   └── CodeSyntaxHighlighter.swift (Code highlighting)
 │   └── 📁 Views/
 │       ├── NoteEditorView.swift     (Main view)
-│       └── MarkdownEditorView.swift (Custom editor)
+│       └── SimpleBlockEditor.swift  (Block editor)
 │
 ├── 📚 Documentation/
 │   ├── README.md              (Main documentation)
@@ -62,8 +68,10 @@ mininote/
 ### Langages & Frameworks
 - **Swift 5.9+** - Langage principal
 - **SwiftUI** - Interface utilisateur moderne
-- **AppKit** - Intégration système native
+- **AppKit** - Intégration système native (NSTextView)
 - **Combine** - Programmation réactive
+- **swift-markdown** - Parser AST CommonMark officiel Apple
+- **Splash** - Syntax highlighting pour code blocks
 
 ### Patterns & Architecture
 - **MVVM** - Model-View-ViewModel
@@ -96,11 +104,14 @@ Memory Usage:    2-3 MB (idle)
 | **H2** | `## Titre` | Titre moyen en gras |
 | **H3** | `### Titre` | Petit titre en gras |
 | **Liste** | `- Item` | • Item |
-| **Tâche** | `- [ ] Todo` | ☐ Todo |
-| **Tâche cochée** | `- [x] Done` | ☑ ~~Done~~ |
+| **Tâche** | `- [ ] Todo` | ☐ Todo (checkbox native) |
+| **Tâche cochée** | `- [x] Done` | ☑ ~~Done~~ (strikethrough) |
+| **Code block** | ` ```swift` | Bloc multi-ligne avec highlight |
 | **Gras** | `**texte**` | **texte** |
 | **Italique** | `*texte*` | *texte* |
-| **Code** | `` `code` `` | `code` |
+| **Code inline** | `` `code` `` | `code` (background + color) |
+| **Quote** | `> quote` | Citation en italique gris |
+| **Link** | `[text](url)` | Lien cliquable souligné |
 
 ## 🚀 Quick Start (3 étapes)
 
@@ -154,19 +165,29 @@ pkill MiniNote || true; sleep 2; .build/debug/MiniNote &
 # Code Snippets
 
 ## Swift Array Filter
-`array.filter { $0 > 10 }`
+\`\`\`swift
+let filtered = array.filter { $0 > 10 }
+let mapped = array.map { $0 * 2 }
+\`\`\`
 
 ## Git Commands
 - `git status` - Check status
 - `git commit -am "message"` - Commit all
+
+## Python Example
+\`\`\`python
+def hello(name):
+    return f"Hello, {name}!"
+\`\`\`
 ```
 
 ## 🏆 Points forts du projet
 
 ### ✅ Architecture
+- **Block-based** : Architecture modulaire par blocs
 - **Clean Code** : Organisation claire et maintenable
 - **Best Practices** : Suit les guidelines Apple
-- **Modular** : Facile à étendre
+- **Modular** : Facile d'ajouter de nouveaux types de blocs
 - **Testable** : Architecture MVVM testable
 
 ### ✅ Documentation
@@ -241,6 +262,6 @@ Voir [LICENSE](LICENSE) pour les détails.
 
 ---
 
-**MiniNote v1.0.0** - Une application macOS native pour prendre des notes en markdown avec style 🎨
+**MiniNote v2.0.0** - Une application macOS native avec éditeur par blocs pour prendre des notes en markdown avec style 🎨
 
 *Créé avec passion et best practices* 🚀
