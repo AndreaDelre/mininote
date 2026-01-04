@@ -7,12 +7,13 @@ struct SimpleBlockEditor: View {
     @State private var blocks: [SimpleBlock] = []
     @FocusState private var focusedBlockId: UUID?
     @State private var desiredCursorPosition: Int? = nil
+    @State private var updateTrigger: Int = 0
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach($blocks) { $block in
-                    BlockTextView(
+                    UnifiedBlockView(
                         block: $block,
                         isFocused: focusedBlockId == block.id,
                         desiredCursorPosition: focusedBlockId == block.id ? desiredCursorPosition : nil,
@@ -41,6 +42,7 @@ struct SimpleBlockEditor: View {
         }
         .onChange(of: blocks) { _ in
             saveContent()
+            updateTrigger += 1
         }
     }
 
@@ -261,8 +263,11 @@ struct BlockTextField: NSViewRepresentable {
 
         func textDidChange(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
+
+            let currentText = textView.string
+
             isUpdatingFromTextView = true
-            text = textView.string
+            text = currentText
             isUpdatingFromTextView = false
         }
 
@@ -391,5 +396,140 @@ class CustomTextView: NSTextView {
 
         // Restore cursor position
         self.setSelectedRange(selectedRange)
+    }
+}
+
+/// Checkbox block view with SwiftUI checkbox and text editor
+struct CheckboxBlockView: View {
+    @Binding var block: SimpleBlock
+    let isFocused: Bool
+    let desiredCursorPosition: Int?
+    let onSplit: (String, String) -> Void
+    let onBackspaceAtStart: () -> Void
+    let onArrowUp: (Int) -> Void
+    let onArrowDown: (Int) -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            // SwiftUI Checkbox
+            Toggle("", isOn: Binding(
+                get: { block.isTaskChecked },
+                set: { _ in block.toggleTask() }
+            ))
+            .toggleStyle(.checkbox)
+            .labelsHidden()
+            .padding(.top, 2)
+
+            // Text editor (only the task text, without "- [ ]")
+            BlockTextField(
+                text: Binding(
+                    get: { block.taskText },
+                    set: { newText in
+                        // Keep the checkbox prefix, update only the text part
+                        let prefix = block.isTaskChecked ? "- [x] " : "- [ ] "
+                        block.content = prefix + newText
+                    }
+                ),
+                desiredCursorPosition: desiredCursorPosition,
+                onSplit: { textBefore, textAfter in
+                    // When splitting, add the checkbox prefix back
+                    let prefix = block.isTaskChecked ? "- [x] " : "- [ ] "
+                    onSplit(prefix + textBefore, textAfter)
+                },
+                onBackspaceAtStart: onBackspaceAtStart,
+                onArrowUp: onArrowUp,
+                onArrowDown: onArrowDown
+            )
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.red.opacity(0.2))
+        .padding(.vertical, 2)
+    }
+}
+
+/// Unified block view that handles both regular text and tasks
+struct UnifiedBlockView: View {
+    @Binding var block: SimpleBlock
+    let isFocused: Bool
+    let desiredCursorPosition: Int?
+    let onSplit: (String, String) -> Void
+    let onBackspaceAtStart: () -> Void
+    let onArrowUp: (Int) -> Void
+    let onArrowDown: (Int) -> Void
+
+    @State private var showCheckbox: Bool = false
+
+    var body: some View {
+        let _ = print("🔄 UnifiedBlockView render: '\(block.content)' isTask=\(block.isTask) showCheckbox=\(showCheckbox)")
+
+        HStack(alignment: .top, spacing: 8) {
+            // Show checkbox only if it's a task
+            if showCheckbox {
+                Toggle("", isOn: Binding(
+                    get: { block.isTaskChecked },
+                    set: { _ in block.toggleTask() }
+                ))
+                .toggleStyle(.checkbox)
+                .labelsHidden()
+                .padding(.top, 2)
+            }
+
+            // Text editor
+            BlockTextField(
+                text: Binding(
+                    get: {
+                        // If checkbox is shown, display only the text without the prefix
+                        if showCheckbox {
+                            return block.taskText
+                        } else {
+                            return block.content
+                        }
+                    },
+                    set: { newText in
+                        print("⌨️ TextField set: '\(newText)' showCheckbox=\(showCheckbox)")
+                        if showCheckbox {
+                            // Keep the checkbox prefix
+                            let prefix = block.isTaskChecked ? "- [x] " : "- [ ] "
+                            block.content = prefix + newText
+                        } else {
+                            block.content = newText
+                        }
+                        print("   → block.content now: '\(block.content)'")
+                    }
+                ),
+                desiredCursorPosition: showCheckbox ? nil : desiredCursorPosition,
+                onSplit: { textBefore, textAfter in
+                    if showCheckbox {
+                        // Add prefix back when splitting
+                        let prefix = block.isTaskChecked ? "- [x] " : "- [ ] "
+                        onSplit(prefix + textBefore, textAfter)
+                    } else {
+                        onSplit(textBefore, textAfter)
+                    }
+                },
+                onBackspaceAtStart: {
+                    if showCheckbox {
+                        // When at start of task text, remove the checkbox to go back to normal text
+                        block.content = block.taskText
+                        showCheckbox = false
+                    } else {
+                        onBackspaceAtStart()
+                    }
+                },
+                onArrowUp: onArrowUp,
+                onArrowDown: onArrowDown
+            )
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.red.opacity(0.2))
+        .padding(.vertical, 2)
+        .onAppear {
+            showCheckbox = block.isTask
+        }
+        .onChange(of: block.content) { _ in
+            withAnimation(.none) {
+                showCheckbox = block.isTask
+            }
+        }
     }
 }
